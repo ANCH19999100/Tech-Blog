@@ -1,0 +1,39 @@
+QEMU虚拟机与外部机器局域网连通
+==========================================
+
+有时需要QEMU虚拟机内的系统，与主机，乃至主机外的其他机器进行局域网连通(可通过IP地址互相访问)。
+例如远程内核调试等场景。下面介绍配置方法。
+
+tap网络(限Linux下运行的QEMU)
+---------------------------------
+
+先决条件
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- tap是Linux独属的功能，因此仅支持Linux下运行的QEMU。本节示例环境为Ubuntu 20.04 & Qemu 9.0.1
+    
+    tap是Linux下的虚拟网卡设备，能够给用户态进程提供网络数据包，但它的数据包不源于网卡链路层，而来自于其他用户进程或内核。
+
+- 需要连通的虚拟机主机和外部主机已经用以太网线缆连接到同一网络节点(集线器、交换机等)上，可以互相ping通。无线网可能无法用于Windows内核调试等场景。
+
+配置步骤
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+大致而言，在主机下创建一个tap设备，再创建一个网桥，然后将主机的以太网设备和tap设备同时加入网桥，最后激活tap设备并在启动QEMU虚拟机时通过命令行注入。
+具体而言：(以下命令需要在root权限执行或使用sudo)
+
+#. 安装桥软件包 ``apt install bridge-utils``
+#. 创建网桥 ``brctl addbr br0``
+#. 以太网网卡加入网桥 ``brctl addif br0 eno1``
+
+    可以通过 ``ip addr show`` 或 ``ifconfig`` 查询以太网网卡接口名称，通常是eno1、ens33、eth0等。这些命令列出网络接口(Network Interface)相关信息(if即为interface缩写)。
+
+#. 清理以太网网卡的IP配置 ``ifconfig eno1 0``
+#. 给网桥分配一个IP(使用DHCP) ``dhclient br0``
+#. 创建tap设备 ``ip tuntap add dev tap0 mode tap``
+#. 将tap设备加入网桥 ``brctl addif br0 tap0``
+#. 激活tap设备 ``ip link set dev tap0 up``
+#. 启动QEMU虚拟机，启动时增加参数 ``-net nic,model=e1000,netdev=tap0dev -netdev tap,ifname=tap0,script=no,downscript=no,id=tap0dev``，进入虚拟机系统后测试与主机的连通性，已经可以连通了。
+
+| 参考资料：
+| 《QEMU/KVM源码解析与应用》 李强

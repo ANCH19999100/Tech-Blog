@@ -1,0 +1,24 @@
+附录：测试两台机器的本地网络连通性
+=============================================================================
+
+可以通过以下工具之一测试两台机器的连通性：
+
+1. ntttcp
+    - 下载 `ntttcp.exe <https://github.com/microsoft/ntttcp/releases/latest>`_，复制到两台机器
+    - 先获取接收端IP(以调试端或被调试端为接收端均可)，可通过运行 ``ipconfig`` 获取
+    - 接收端执行(替换命令中的ntttcp路径、IP)以下命令。第一行作用为添加防火墙规则，以允许接收ntttcp流量
+    
+    .. code-block:: shell
+
+        netsh advfirewall firewall add rule program=c:\tools\ntttcp.exe name="ntttcp" protocol=any dir=in action=allow enable=yes profile=ANY
+        ntttcp -r -m 2,*,192.168.x.x -t 1
+
+    - 另一端执行(替换命令中的IP) ``ntttcp -s -m 2,*,192.168.x.x -t 1``，如果接收端有反应，则已连通
+
+2. iperf
+    - 可用于跨平台测试场景，例如Linux、Windows、Android系统的互相连通测试。推荐使用iperf 2.0(3.0未完全适配Windows)
+    - 与ntttcp工具的使用流程十分类似，只是接收端命令改为 ``iperf -s -i 1``，发送端命令改为 ``iperf -c 192.168.x.x(接收端IP) -i 1 -t 20``
+
+3. ping
+    - 相比以上两种，无需下载工具，但无法在两端同时看到连通反馈
+    - 直接以对方IP为参数使用即可
